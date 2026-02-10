@@ -9,6 +9,6 @@ class Eparaksts extends \Illuminate\Support\Facades\Facade
      */
     protected static function getFacadeAccessor(): string
     {
-        return \Dencel\Eparaksts\Eparaksts::class;
+        return 'eparaksts';
     }
 }

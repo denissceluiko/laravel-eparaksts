@@ -1,11 +1,39 @@
-<?php 
+<?php
 
 return [
 
     /**
-     * Users table used for migrations
+     * User model to be used in migration generation
      */
-    'users_table' => 'users',
+    'user_model' => 'App\Models\User',
+    
+    /**
+     * Field names in users table
+     */
+    'fields' => [
+        'full_name'         => 'full_name',       
+        'first_name'        => 'first_name',      
+        'last_name'         => 'last_name',       
+        'personal_number'   => 'personal_number', // Will be stored as PNOXX-YYYYYY-ZZZZZ
+    ],
+
+    /**
+     * First, last and full name are returned all caps from eParakss platform.
+     * Enabling this will attempt normalizing name on authentication and registration
+     * e.g. JĀNIS -> Jānis
+     * This may be relevant for case sensitive databases.
+     */
+    'normalize_names' => false, 
+
+    /**
+     * List of fields that must match for successful authentication.
+     */
+    'authentication_match' => ['personal_number', 'full_name', 'first_name', 'last_name'],
+    
+    /**
+     * Should new users be created?
+     */
+    'registration_enabled' => false,
 
     /**
      * Individually issued for legal entities
@@ -43,7 +71,7 @@ return [
     'session_prefix' => 'eparaksts_',
     
     /**
-     * No trailing slash please.
+     * No trailing slash.
      */
     'route_prefix' => 'ep',
 ];
