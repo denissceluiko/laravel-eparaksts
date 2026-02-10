@@ -1,0 +1,47 @@
+{
+    "name": "dencel/laravel-eparaksts",
+    "description": "Use Latvian eParaksts in your Laravel app.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "eparaksts",
+        "eIDAS",
+        "authentication",
+        "signature",
+        "SignAPI",
+        "laravel"
+    ],
+    "authors": [
+        {
+            "name": "Deniss Celuiko",
+            "email": "deniss.celuiko@gmail.com",
+            "homepage": "https://celuiko.com/"
+        }
+    ],
+    "homepage": "https://github.com/denissceluiko/laravel-eparaksts",
+    "require": {
+        "php": "^8.2",
+        "dencel/eparaksts": "^0.1",
+        "illuminate/http": "^11.0 || ^12.0",
+        "illuminate/session": "^11.0 || ^12.0",
+        "illuminate/support": "^11.0 || ^12.0"
+    },
+    "autoload": {
+        "files": [
+            "src/helpers.php"
+        ],
+        "psr-4": {
+            "Dencel\\LaravelEparaksts\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Dencel\\LaravelEparaksts\\EparakstsServiceProvider"
+            ],
+            "aliases": {
+                "Eparaksts": "Dencel\\LaravelEparaksts\\Facades\\Eparaksts"
+            }
+        }
+    }
+}
