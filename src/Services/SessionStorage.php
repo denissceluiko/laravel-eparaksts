@@ -15,13 +15,13 @@ class SessionStorage {
 
     public function save()
     {
-        $b64Encoded =json_encode($this->storage);
+        $b64Encoded = base64_encode(json_encode($this->storage));
         session()->put($this->prefix.'_ep_storage', $b64Encoded);
     }
 
     public function init(Store $store)
     {
-        $b64Decoded = $store->get($this->prefix.'_ep_storage', '');
+        $b64Decoded = base64_decode($store->get($this->prefix.'_ep_storage', ''), true);
         $this->storage = json_decode($b64Decoded, true) ?? [];
     }
 
@@ -47,14 +47,14 @@ class SessionStorage {
         if ($identity === null)
             return $this->storage['me'] ?? [];
 
-        $this->storage['me'] = array_merge($this->storage['me'], $identity);
+        $this->storage['me'] = array_merge($this->storage['me'] ?? [], $identity);
         return $this->storage['me'];
     }
 
         
     public function signIdentities(): ?array
     {
-        if (empty($this->storage['me']['sign_identities']))
+        if (empty( $this->me()['sign_identities'] ))
             return null;
 
         return $this->storage['me']['sign_identities'] ?? null;
@@ -62,7 +62,7 @@ class SessionStorage {
 
     public function signIdentity(string $id, ?array $newData = null): ?array
     {
-        if (empty($this->storage['me']['sign_identities']))
+       if (empty( $this->me()['sign_identities'] ))
             return null;
 
         foreach ($this->storage['me']['sign_identities'] as $key => $signIdentity) {
@@ -90,7 +90,10 @@ class SessionStorage {
 
     public function saveTokens(array $data): void
     {
-        $this->storage['tokens'] = $data;
+        $this->storage['tokens'] = array_merge(
+            $this->storage['tokens'] ?? [],
+            $data
+        );
     }
 
     public function getTokens(): array

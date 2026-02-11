@@ -13,7 +13,8 @@ class HandlesSessionStorage
         $storage->init($request->session());
         
         if ($storage->hasTokens()) {
-            resolve('eparaksts')->setTokens($storage->getTokens());
+            resolve('eparaksts-connector')->setTokens($storage->getTokens());
+            resolve('eparaksts-signapi')->setTokens($storage->getTokens());
         }
 
         $response = $next($request);

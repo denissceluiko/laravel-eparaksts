@@ -21,10 +21,11 @@
     "homepage": "https://github.com/denissceluiko/laravel-eparaksts",
     "require": {
         "php": "^8.2",
-        "dencel/eparaksts": "^0.1",
+        "dencel/eparaksts": "^0.2",
         "illuminate/http": "^11.0 || ^12.0",
         "illuminate/session": "^11.0 || ^12.0",
-        "illuminate/support": "^11.0 || ^12.0"
+        "illuminate/support": "^11.0 || ^12.0",
+        "illuminate/view": "^11.0 || ^12.0"
     },
     "autoload": {
         "files": [

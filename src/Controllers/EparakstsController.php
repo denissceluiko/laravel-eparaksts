@@ -21,7 +21,7 @@ class EparakstsController
             // TBI
         }
 
-        $eparaksts = resolve('eparaksts');
+        $eparaksts = resolve('eparaksts-connector');
         $eparaksts->requestToken(
             Eparaksts::GRANT_AUTHORIZATION_CODE, 
             ['code' => request('code')]
@@ -48,7 +48,7 @@ class EparakstsController
             default => null,
         };
 
-        $eparaksts = resolve('eparaksts');
+        $eparaksts = resolve('eparaksts-connector');
 
         // TBI: check if token still valid and usable before redirect
 
@@ -65,7 +65,7 @@ class EparakstsController
     public function logoutFlow()
     {
         epsession()->action('logout');
-        $redirect = resolve('eparaksts')->logout(route('eparaksts.redirect'));
+        $redirect = resolve('eparaksts-connector')->logout(route('eparaksts.redirect'));
         epsession()->flush();
 
         return $this->redirect($redirect);
@@ -74,7 +74,7 @@ class EparakstsController
     public function identitiesFlow(): RedirectResponse
     {
         epsession()->action(Eparaksts::SCOPE_SIGNING_IDENTITY);
-        $eparaksts = resolve('eparaksts');
+        $eparaksts = resolve('eparaksts-connector');
         // TBI: check if token still valid and usable before redirect
 
         $redirect = $eparaksts->authorize(
@@ -88,11 +88,11 @@ class EparakstsController
 
     public function callbackIdentification()
     {
-        $eparaksts = resolve('eparaksts');
+        $eparaksts = resolve('eparaksts-connector');
         $identity = $eparaksts->me(Eparaksts::SCOPE_IDENTIFICATION);
 
         if (empty($identity)) {
-            return redirect()->route('eparaksts.auth');
+            return redirect()->route('eparaksts.identification');
         }
 
         if ($this->attemptAuthentication($identity)) {
@@ -109,7 +109,7 @@ class EparakstsController
 
     public function callbackIdentities()
     {
-        $eparaksts = resolve('eparaksts');
+        $eparaksts = resolve('eparaksts-connector');
         $identities = $eparaksts->me(Eparaksts::SCOPE_SIGNING_IDENTITY);
 
         if (empty($identities)) {

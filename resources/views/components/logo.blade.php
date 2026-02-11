@@ -1,0 +1,1 @@
+<img src="{{ $path }}" @if(!empty($class)) class="{{ $class }}" @endif @if(!empty($alt)) alt="{{ $alt }}" @endif/>
