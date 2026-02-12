@@ -19,6 +19,11 @@ class HandlesSessionStorage
 
         $response = $next($request);
 
+        $storage->saveTokens(array_merge(
+            resolve('eparaksts-signapi')->getTokens(),
+            resolve('eparaksts-connector')->getTokens()
+        ));
+
         $storage->save();
 
         return $response;

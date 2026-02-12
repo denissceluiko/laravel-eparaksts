@@ -85,19 +85,39 @@ class SessionStorage {
 
     public function hasTokens(): bool
     {
-        return empty($this->storage['tokens']);
+        return !empty($this->storage['tokens']);
     }
 
-    public function saveTokens(array $data): void
+    public function saveTokens(array $tokens): void
     {
-        $this->storage['tokens'] = array_merge(
-            $this->storage['tokens'] ?? [],
-            $data
-        );
+        foreach ($tokens as $scope => $token) {
+            if (empty($token['bearer']) || empty($token['expires']))
+                continue;
+            
+            $this->storage['tokens'][$scope] = $token;
+        }
     }
 
     public function getTokens(): array
     {
         return $this->storage['tokens'] ?? [];
+    }
+
+    public function getDigest(string $session): ?array
+    {
+        if (empty($this->storage['digests'])){
+            return null;
+        }
+
+        return $this->storage['digests'][$session] ?? null;
+    }
+
+    public function saveDigest(string $session, ?array $data): void
+    {
+        if (empty($this->storage['digests'])){
+            $this->storage['digests'] = [];
+        }
+
+        $this->storage['digests'][$session] = $data;
     }
 }

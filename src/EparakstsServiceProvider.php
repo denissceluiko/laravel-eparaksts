@@ -37,7 +37,6 @@ class EparakstsServiceProvider extends ServiceProvider
         $this->app->singleton('ep-session', function (): SessionStorage {
             return new SessionStorage(config('eparaksts.session_prefix'));
         });
-
         
         $this->app->bind('eparaksts', function (Application $app): EparakstsService {
             return new EparakstsService(

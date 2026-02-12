@@ -4,14 +4,16 @@ namespace Dencel\LaravelEparaksts\Controllers;
 
 use Dencel\Eparaksts\Eparaksts;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 
 use function Dencel\LaravelEparaksts\epsession;
 
 class EparakstsController
 {
-    public function redirect()
+    public function redirect(Request $request)
     {
         $state = request('state', null);
 
@@ -22,16 +24,18 @@ class EparakstsController
         }
 
         $eparaksts = resolve('eparaksts-connector');
-        $eparaksts->requestToken(
+        $token = $eparaksts->requestToken(
             Eparaksts::GRANT_AUTHORIZATION_CODE, 
             ['code' => request('code')]
         );
         epsession()->saveTokens($eparaksts->getTokens());
 
+        $activeSigning = session()->get( config('eparaksts.session_prefix') . '_active_signing' , null);
+
         return match (epsession()->action()) {
             Eparaksts::SCOPE_IDENTIFICATION => $this->callbackIdentification(),
             Eparaksts::SCOPE_SIGNING_IDENTITY => $this->callbackIdentities(),
-            // Eparaksts::SCOPE_SIGNATURE => $this->callbackSignature(),
+            Eparaksts::SCOPE_SIGNATURE => $this->finalizeSigning($request->merge(['session' => $activeSigning])),
             default => $this->callbackDefault(),
         };
     }
@@ -86,6 +90,76 @@ class EparakstsController
         return redirect($redirect);
     }
 
+    public function signFlow(Request $request)
+    {
+        $sessionId = $request->session;
+        // Save referer $request->headers->get('referer') to return to after signing success
+        // Set some session flag not to override referer while signflow is on for session
+        $here = route('eparaksts.sign', ['session' => $sessionId]);
+
+        $eparaksts = resolve('eparaksts')
+            ->session($sessionId);
+
+        if (!$eparaksts->sessionOk()) {
+            return back();
+        }
+
+        if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_IDENTIFICATION)) {
+            Redirect::setIntendedUrl($here);
+            return redirect()->route('eparaksts.identification');
+        }
+
+        if (!$eparaksts->hasFiles()) {
+            session()->flash('error', 'Session has no files');
+            return back();
+        }
+
+        if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_SIGNING_IDENTITY)) {
+            Redirect::setIntendedUrl($here);
+            return redirect()->route('eparaksts.identities');
+        }
+
+        if (!$eparaksts->hasDigestCalculated() && !$eparaksts->calculateDigest()) {
+            session()->flash('error', 'Could not calculate digest');
+            return back();
+        }
+
+        epsession()->action(Eparaksts::SCOPE_SIGNATURE);
+        $redirect = $eparaksts->connector()->authorize(
+            epsession()->action(),
+            epsession()->state(true),
+            route('eparaksts.redirect', ['session' => $request->session]),
+            $eparaksts->signatureAuthorizationData()
+        );
+
+        session()->flash( config('eparaksts.session_prefix') . '_active_signing' , $request->session);
+        
+        return redirect($redirect);
+    }
+
+    public function finalizeSigning(Request $request)
+    {
+        $eparaksts = resolve('eparaksts')
+            ->session($request->session);
+
+        $digestSignResult = $eparaksts->signDigest();
+        if ($digestSignResult === false) {
+            session()->flash('error', 'Could not sign digest');
+
+            dd($eparaksts);
+            return back();
+        }
+
+        if (!$eparaksts->finalizeSigning()) {
+            session()->flash('error', 'Could not finalize signing');
+            return back();
+        }
+
+        // TBI should redirect to original referer
+        // remove session signing flag
+        return redirect()->route('document.session', [$eparaksts->getSession()]);
+    }
+
     public function callbackIdentification()
     {
         $eparaksts = resolve('eparaksts-connector');
@@ -99,12 +173,12 @@ class EparakstsController
             session()->regenerate();
             epsession()->me($identity);
 
-            return redirect()->intended('dashboard');
+            return redirect()->intended('/');
         } elseif (config('eparaksts.registration_enabled') === true) {
             return $this->register($identity); // TBI
         }
 
-        return redirect('/');
+        return redirect()->intended('/');
     }
 
     public function callbackIdentities()
@@ -119,11 +193,11 @@ class EparakstsController
         epsession()->me($identities);
 
         foreach (epsession()->signIdentities() as $identity) {
-            $data = $eparaksts->signIdentity($identity['id']);
+            $data = $eparaksts->getSignIdentity($identity['id']);
             epsession()->signIdentity($identity['id'], $data['identity']);
         }
 
-        return back();
+        return redirect()->intended('/');
     }
 
     public function callbackDefault()
