@@ -93,8 +93,7 @@ class EparakstsController
     public function signFlow(Request $request)
     {
         $sessionId = $request->session;
-        // Save referer $request->headers->get('referer') to return to after signing success
-        // Set some session flag not to override referer while signflow is on for session
+
         $here = route('eparaksts.sign', ['session' => $sessionId]);
 
         $eparaksts = resolve('eparaksts')
@@ -102,6 +101,10 @@ class EparakstsController
 
         if (!$eparaksts->sessionOk()) {
             return back();
+        }
+
+        if ($eparaksts->getRedirectAfter() === null) {
+            $eparaksts->redirectAfter($request->headers->get('referer'));
         }
 
         if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_IDENTIFICATION)) {
@@ -145,8 +148,6 @@ class EparakstsController
         $digestSignResult = $eparaksts->signDigest();
         if ($digestSignResult === false) {
             session()->flash('error', 'Could not sign digest');
-
-            dd($eparaksts);
             return back();
         }
 
@@ -155,9 +156,9 @@ class EparakstsController
             return back();
         }
 
-        // TBI should redirect to original referer
-        // remove session signing flag
-        return redirect()->route('document.session', [$eparaksts->getSession()]);
+        $redirect = $eparaksts->getRedirectAfter();
+        $eparaksts->resetRedirectAfter();
+        return redirect()->to($redirect);
     }
 
     public function callbackIdentification()

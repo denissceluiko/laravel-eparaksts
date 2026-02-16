@@ -77,6 +77,20 @@ class SessionStorage {
         return null;
     }
 
+    public function redirectAfter(?string $to = null): ?string
+    {
+        if ($to !== null) {
+            $this->storage['redirectAfter'] = $to;
+        }
+
+        return $this->storage['redirectAfter'] ?? null;
+    }
+
+    public function resetRedirectAfter(): void
+    {
+        $this->storage['redirectAfter'] = null;
+    }
+
     public function flush(): void
     {
         session()->put($this->prefix.'_ep_storage', '');

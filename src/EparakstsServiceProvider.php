@@ -5,6 +5,7 @@ namespace Dencel\LaravelEparaksts;
 
 use Dencel\Eparaksts\Eparaksts;
 use Dencel\Eparaksts\SignAPI\v1\SignAPI;
+use Dencel\LaravelEparaksts\Console\Commands\InstallCommand;
 use Dencel\LaravelEparaksts\Middleware\HandlesSessionStorage;
 use Dencel\LaravelEparaksts\Services\Eparaksts as EparakstsService;
 use Dencel\LaravelEparaksts\Services\SessionStorage;
@@ -55,6 +56,12 @@ class EparakstsServiceProvider extends ServiceProvider
     {
         $router->pushMiddlewareToGroup('web', HandlesSessionStorage::class);
 
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                InstallCommand::class,
+            ]);
+        }
+
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         
         $this->registerComponents();
@@ -62,12 +69,11 @@ class EparakstsServiceProvider extends ServiceProvider
         
         $this->publishes([
             __DIR__.'/../config/eparaksts.php' => config_path('eparaksts.php'),
-        ]);
+        ], 'eparaksts-config');
 
-        // TBI
         $this->publishesMigrations([
             __DIR__.'/../database/migrations' => database_path('migrations'),
-        ]);
+        ], 'eparaksts-migrations');
 
         $this->publishes([
             __DIR__.'/../resources/views' => resource_path('views/vendor/eparaksts'),

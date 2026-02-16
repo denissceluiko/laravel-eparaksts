@@ -78,6 +78,22 @@ class Eparaksts
         return redirect()->route('eparaksts.sign', [$this->getSession()]);
     }
 
+    public function redirectAfter(string $to): static
+    {
+        $this->sessionStorage->redirectAfter($to);
+        return $this;
+    }    
+
+    public function getRedirectAfter(): ?string
+    {
+        return $this->sessionStorage->redirectAfter();
+    }
+        
+    public function resetRedirectAfter(): void
+    {
+        $this->sessionStorage->resetRedirectAfter();
+    }
+
     protected function addFile(string $path): bool
     {
         $path = $this->disk ? Storage::disk()->path($path) : $path;
@@ -484,5 +500,27 @@ class Eparaksts
     public function getLogs(): array
     {
         return $this->logs;
+    }
+
+    public static function activeSigning(string $session): bool
+    {
+        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
+        return in_array($session, $activeSessions);
+    }
+
+    public static function startSigning(string $session): void
+    {
+        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
+        $activeSessions[] = $session;
+        session()->put( config('eparaksts.session_prefix') . 'active_sessions', $activeSessions);
+    }
+
+    public static function stopSigning(string $session): void
+    {
+        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
+        $activeSessions = array_filter($activeSessions, function ($value) use ($session) {
+            return $value != $session;
+        });
+        session()->put( config('eparaksts.session_prefix') . 'active_sessions', $activeSessions);
     }
 }
