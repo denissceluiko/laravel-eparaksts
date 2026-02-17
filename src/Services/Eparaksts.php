@@ -4,11 +4,13 @@ namespace Dencel\LaravelEparaksts\Services;
 
 use Dencel\Eparaksts\Eparaksts as DencelEparaksts;
 use Dencel\Eparaksts\SignAPI\v1\SignAPI;
-use Illuminate\Http\RedirectResponse;
+use Dencel\LaravelEparaksts\Concerns\HasCallbacks;
 use Illuminate\Support\Facades\Storage;
 
 class Eparaksts
 {
+    use HasCallbacks;
+
     public const AVAILABLE_CONTAINER_TYPES = ['edoc', 'pdf', 'asice'];
 
     protected ?string $session = null;
@@ -73,7 +75,7 @@ class Eparaksts
         return $this;
     }
 
-    public function sign(): RedirectResponse
+    public function sign(): mixed
     {
         return redirect()->route('eparaksts.sign', [$this->getSession()]);
     }
@@ -323,6 +325,7 @@ class Eparaksts
 
         $this->sessionEstablished = true;
         $this->digestData = $this->sessionStorage->getDigest($this->getSession()) ?? [];
+        $this->afterSignCallbacks = $this->sessionStorage->callbacksFor('afterSign');
 
         return true;
     }

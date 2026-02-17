@@ -179,6 +179,8 @@ class EparakstsController
             return $this->register($identity); // TBI
         }
 
+        $eparaksts->callAfterSign();
+
         return redirect()->intended('/');
     }
 
