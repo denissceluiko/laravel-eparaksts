@@ -2,19 +2,21 @@
 
 namespace Dencel\LaravelEparaksts\Callbacks;
 
+use Dencel\LaravelEparaksts\Services\Eparaksts;
+
 abstract class Callback
 {
-    public ?string $sessionId = null;
+    public ?Eparaksts $eparaksts = null;
 
     abstract public function handle();
 
-    public function getSessionId() : ?string
+    public function getEparaksts() : ?string
     {
-        return $this->sessionId;   
+        return $this->eparaksts;
     }
 
-    public function setSessionId(string $sessionId) : ?string
+    public function setEparaksts(Eparaksts $eparaksts) : ?Eparaksts
     {
-        return $this->sessionId = $sessionId;
+        return $this->eparaksts = $eparaksts;
     }
 }

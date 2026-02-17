@@ -77,27 +77,18 @@ class SessionStorage {
         return null;
     }
 
-    public function callbacks(): array
-    {
-        if (empty($this->storage['callbacks'])) {
-            $this->storage['callbacks'] = [];
-        }
-
-        return $this->storage['callbacks'];
-    }
-
-    public function callbacksFor(string $hook, ?array $callbacks = null): array
+    public function callbacks(?array $callbacks = null): array
     {
         if (empty($this->storage['callbacks'])) {
             $this->storage['callbacks'] = [];
         }
 
         if ($callbacks === null) {
-            return $this->storage['callbacks'][$hook] ?? [];
+            return $this->storage['callbacks'] ?? [];
         }
 
-        $this->storage['callbacks'][$hook] = $callbacks;
-        return $this->storage['callbacks'][$hook];
+        $this->storage['callbacks'] = $callbacks;
+        return $this->storage['callbacks'];
     }
 
     public function redirectAfter(?string $to = null): ?string

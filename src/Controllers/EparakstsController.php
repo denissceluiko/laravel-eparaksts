@@ -96,36 +96,50 @@ class EparakstsController
 
         $here = route('eparaksts.sign', ['session' => $sessionId]);
 
-        $eparaksts = resolve('eparaksts')
-            ->session($sessionId);
+        $eparaksts = resolve('eparaksts');
+        $eparaksts->callBeforeSignFlowSessionEstablished();
+
+        $eparaksts->session($sessionId);
 
         if (!$eparaksts->sessionOk()) {
             return back();
         }
 
+        $eparaksts->callAfterSignFlowSessionEstablished();
+
         if ($eparaksts->getRedirectAfter() === null) {
             $eparaksts->redirectAfter($request->headers->get('referer'));
         }
+
+        $eparaksts->callBeforeIdentificationObtained();
 
         if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_IDENTIFICATION)) {
             Redirect::setIntendedUrl($here);
             return redirect()->route('eparaksts.identification');
         }
 
+        $eparaksts->callAfterIdentificationObtained();
+
         if (!$eparaksts->hasFiles()) {
             session()->flash('error', 'Session has no files');
             return back();
         }
+
+        $eparaksts->callBeforeSigningIdentityObtained();
 
         if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_SIGNING_IDENTITY)) {
             Redirect::setIntendedUrl($here);
             return redirect()->route('eparaksts.identities');
         }
 
+        $eparaksts->callAfterSigningIdentityObtained();
+
         if (!$eparaksts->hasDigestCalculated() && !$eparaksts->calculateDigest()) {
             session()->flash('error', 'Could not calculate digest');
             return back();
         }
+
+        $eparaksts->callAfterDigestCalculated();
 
         epsession()->action(Eparaksts::SCOPE_SIGNATURE);
         $redirect = $eparaksts->connector()->authorize(
@@ -136,6 +150,7 @@ class EparakstsController
         );
 
         session()->flash( config('eparaksts.session_prefix') . '_active_signing' , $request->session);
+        $eparaksts->callBeforeSignatureAuthorizationRedirect();
         
         return redirect($redirect);
     }
@@ -145,19 +160,26 @@ class EparakstsController
         $eparaksts = resolve('eparaksts')
             ->session($request->session);
 
+        $eparaksts->callBeforeSigningDigest();
+
         $digestSignResult = $eparaksts->signDigest();
         if ($digestSignResult === false) {
             session()->flash('error', 'Could not sign digest');
             return back();
         }
+        $eparaksts->callAfterSigningDigest();
 
         if (!$eparaksts->finalizeSigning()) {
             session()->flash('error', 'Could not finalize signing');
             return back();
         }
 
+        $eparaksts->callAfterSigningFinalized();
+
         $redirect = $eparaksts->getRedirectAfter();
+        $eparaksts->callBeforeFinalRedirect();
         $eparaksts->resetRedirectAfter();
+
         return redirect()->to($redirect);
     }
 
@@ -178,8 +200,6 @@ class EparakstsController
         } elseif (config('eparaksts.registration_enabled') === true) {
             return $this->register($identity); // TBI
         }
-
-        $eparaksts->callAfterSign();
 
         return redirect()->intended('/');
     }

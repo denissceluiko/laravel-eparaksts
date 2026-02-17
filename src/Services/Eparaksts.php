@@ -325,7 +325,7 @@ class Eparaksts
 
         $this->sessionEstablished = true;
         $this->digestData = $this->sessionStorage->getDigest($this->getSession()) ?? [];
-        $this->afterSignCallbacks = $this->sessionStorage->callbacksFor('afterSign');
+        $this->callbacks = $this->sessionStorage->callbacks();
 
         return true;
     }

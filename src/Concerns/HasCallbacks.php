@@ -6,35 +6,55 @@ use Dencel\LaravelEparaksts\Callbacks\Callback;
 
 trait HasCallbacks
 {
-    protected array $afterSignCallbacks = [];
+    protected array $callbacks = [];
 
-    public function afterSigning(Callback|array $callbacks) : static
+    protected function push(string $fullAction, string|array $callbacks): static
     {
-        if ($callbacks instanceof Callback) {
-            $callbacks = [];
+        if (is_string($callbacks)) {
+            $callbacks = [$callbacks];
         }
 
         $callbacks = array_filter($callbacks, fn($callback): bool => is_a($callback, Callback::class, true));
+        
+        if (empty($this->callbacks[$fullAction])) {
+            $this->callbacks[$fullAction] = [];
+        }
 
-        array_push($this->afterSignCallbacks, $callbacks);
-        $this->sessionStorage->callbacksFor('afterSign', $this->afterSignCallbacks);
+        $this->callbacks[$fullAction] = array_merge($this->callbacks[$fullAction], $callbacks);
+        $this->callbacks[$fullAction] = array_unique($this->callbacks[$fullAction]);
+
+        $this->sessionStorage->callbacks($this->callbacks);
 
         return $this;
     }
 
-    public function callAfterSign()
+    protected function invokeCallback(string $name) 
     {
-        if (empty($this->afterSignCallbacks)) {
+        $name = lcfirst($name);
+
+        if (empty($this->callbacks[$name]))
             return;
-        }
 
-        foreach ($this->afterSignCallbacks as $callback) {
-            if (!is_a($callback, Callback::class, true))
-                continue;
-
+        foreach ($this->callbacks[$name] as $callback) {
             $instance = new $callback();
-            $instance->setSessionId($this->getSession());
+            $instance->setEparaksts($this);
             $instance->handle();
+        }
+    }
+
+    public function getCallbacks(): array
+    {
+        return $this->callbacks;
+    }
+
+    public function __call($name, $arguments)
+    {
+        if (str_starts_with($name, 'call')) {
+            $this->invokeCallback(substr($name, 4));
+        } elseif (str_starts_with($name, 'before')) {
+            $this->push($name, $arguments);
+        } elseif (str_starts_with($name, 'after')) {
+            $this->push($name, $arguments);
         }
     }
 }
