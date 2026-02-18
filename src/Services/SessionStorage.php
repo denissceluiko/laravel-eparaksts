@@ -2,6 +2,7 @@
 
 namespace Dencel\LaravelEparaksts\Services;
 
+use Dencel\Eparaksts\Eparaksts;
 use Illuminate\Session\Store;
 
 class SessionStorage {
@@ -125,27 +126,55 @@ class SessionStorage {
             $this->storage['tokens'][$scope] = $token;
         }
     }
+    
+    public function flushToken(string $scope): void
+    {
+        if (empty($this->storage['tokens']))
+            return;
+
+        $this->storage['tokens'][$scope] = [
+            'bearer' => null,
+            'expires' => null,
+        ];
+    }
 
     public function getTokens(): array
     {
         return $this->storage['tokens'] ?? [];
     }
 
-    public function getDigest(string $session): ?array
+    public function getDigest(): ?array
     {
         if (empty($this->storage['digests'])){
             return null;
         }
 
-        return $this->storage['digests'][$session] ?? null;
+        return $this->storage['digests'] ?? null;
     }
 
-    public function saveDigest(string $session, ?array $data): void
+    public function saveDigest(?array $data): void
     {
         if (empty($this->storage['digests'])){
             $this->storage['digests'] = [];
         }
 
-        $this->storage['digests'][$session] = $data;
+        $this->storage['digests'] = $data;
+    }
+
+    public function flushDigest(): void
+    {
+        if (empty($this->storage['digests'])){
+            $this->storage['digests'] = [];
+        }
+
+        $this->storage['digests'] = [];
+    }
+
+    public function flushSessionData() : void
+    {
+        $this->callbacks([]);
+        $this->resetRedirectAfter();
+        $this->flushToken(Eparaksts::SCOPE_SIGNATURE);
+        $this->flushDigest();    
     }
 }

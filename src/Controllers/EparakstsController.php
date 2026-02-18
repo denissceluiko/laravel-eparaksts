@@ -15,12 +15,16 @@ class EparakstsController
 {
     public function redirect(Request $request)
     {
-        $state = request('state', null);
+        $state = $request->input('state', null);
 
         if ($state !== epsession()->state()) {
             session()->flash('ep_error', 'state mismatch');
             abort(403);
             // TBI
+        }
+
+        if ($request->has('error')) {
+            return $this->callbackError($request);
         }
 
         $eparaksts = resolve('eparaksts-connector');
@@ -198,7 +202,7 @@ class EparakstsController
 
             return redirect()->intended('/');
         } elseif (config('eparaksts.registration_enabled') === true) {
-            return $this->register($identity); // TBI
+            return $this->register($identity);
         }
 
         return redirect()->intended('/');
@@ -225,6 +229,16 @@ class EparakstsController
 
     public function callbackDefault()
     {
+        // TBI
+        return redirect('/');
+    }
+
+    public function callbackError(Request $request)
+    {
+        $eparaksts = resolve('eparaksts-connector');
+        $eparaksts->callOnError();
+
+        // TBI change redirect destination
         return redirect('/');
     }
 
@@ -276,6 +290,6 @@ class EparakstsController
 
     protected function register(array $identity)
     {
-        //
+        // TBI
     }
 }

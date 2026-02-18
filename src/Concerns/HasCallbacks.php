@@ -20,6 +20,12 @@ trait HasCallbacks
             $this->callbacks[$fullAction] = [];
         }
 
+        foreach ($callbacks as &$callback) {
+            if (is_object($callback)) {
+                $callback = serialize($callback);
+            }
+        }
+
         $this->callbacks[$fullAction] = array_merge($this->callbacks[$fullAction], $callbacks);
         $this->callbacks[$fullAction] = array_unique($this->callbacks[$fullAction]);
 
@@ -28,7 +34,7 @@ trait HasCallbacks
         return $this;
     }
 
-    protected function invokeCallback(string $name) 
+    protected function invokeCallback(string $name): void 
     {
         $name = lcfirst($name);
 
@@ -36,7 +42,14 @@ trait HasCallbacks
             return;
 
         foreach ($this->callbacks[$name] as $callback) {
-            $instance = new $callback();
+            if (class_exists($callback)) {
+                $instance = new $callback();
+            } else {
+                $instance = unserialize($callback);
+                
+                if ($instance === false || !is_a($instance, Callback::class))
+                    continue;
+            }
             $instance->setEparaksts($this);
             $instance->handle();
         }
@@ -47,14 +60,22 @@ trait HasCallbacks
         return $this->callbacks;
     }
 
-    public function __call($name, $arguments)
+    public function clearCallbacks(): static
+    {
+        $this->callbacks = [];
+        return $this;
+    }
+
+    public function __call($name, $arguments): mixed
     {
         if (str_starts_with($name, 'call')) {
             $this->invokeCallback(substr($name, 4));
         } elseif (str_starts_with($name, 'before')) {
-            $this->push($name, $arguments);
+            return $this->push($name, $arguments[0]);
         } elseif (str_starts_with($name, 'after')) {
-            $this->push($name, $arguments);
+            return $this->push($name, $arguments[0]);
         }
+
+        return null;
     }
 }

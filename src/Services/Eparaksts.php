@@ -181,6 +181,18 @@ class Eparaksts
     {
         return $this->session;
     }
+
+    public function close(): void
+    {
+        if ($this->sessionEstablished) {
+            $this->signAPI->session()->close($this->getSession());
+        }
+        
+        // Clean up anything hanging
+        $this->sessionStorage->flushSessionData();
+        $this->sessionEstablished = false;
+        $this->session = null;        
+    }
     
     public function signAs(string $type, ?bool $newContainer = null): bool
     {
@@ -324,7 +336,7 @@ class Eparaksts
         }
 
         $this->sessionEstablished = true;
-        $this->digestData = $this->sessionStorage->getDigest($this->getSession()) ?? [];
+        $this->digestData = $this->sessionStorage->getDigest() ?? [];
         $this->callbacks = $this->sessionStorage->callbacks();
 
         return true;
@@ -391,7 +403,7 @@ class Eparaksts
             'signature_algorithm'   => $response['data']['signature_algorithm'],
         ];
 
-        $this->sessionStorage->saveDigest($this->getSession(), $this->digestData);
+        $this->sessionStorage->saveDigest($this->digestData);
 
         return true;
     }
