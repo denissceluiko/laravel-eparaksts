@@ -47,11 +47,24 @@ class Eparaksts
         return $this->signAPI;
     }
 
+    /**
+     * Upload one or multiple files.
+     *
+     * @param array|string $paths should be either a single file path, or a list of file paths, or
+     *                     a list of associative arrays.
+     * @return static
+     */
     public function upload(array|string $paths): static
     {
         if (empty($paths)) 
             return $this;
 
+        // ['path' => '/path/to/file', 'name' => 'name.ext']
+        if (is_array($paths) && !array_is_list($paths)) {
+            $paths = [$paths];
+        }
+
+        // '/path/to/file'
         if (is_string($paths)) {
             $paths = [$paths];
         }
@@ -62,7 +75,11 @@ class Eparaksts
         }
 
         foreach ($paths as $path) {
-            $this->addFile($path);
+            if (is_array($path)) {
+                $this->addFileFromArray($path);
+            } else {
+                $this->addFile($path);
+            }
         }
 
         if (empty($this->getFiles())) {
@@ -96,7 +113,25 @@ class Eparaksts
         $this->sessionStorage->resetRedirectAfter();
     }
 
-    protected function addFile(string $path): bool
+    protected function addFileFromArray(array $data): bool
+    {
+        if (array_is_list($data)) {
+            if (count($data) == 1) { // ['/path/to/file']
+                return $this->addFile($data[0]);
+            } elseif (count($data) == 2) { // ['/path/to/file', 'name.ext']
+                return $this->addFile($data[0], $data[1]);
+            }
+            return false;
+        }
+
+        if (!empty($data['path']) || !empty($data['name']))
+            return false;
+
+        // ['path' => '/path/to/file', 'name' => 'name.ext']
+        return $this->addFile($data['path'], $data['name']);
+    }
+
+    protected function addFile(string $path, ?string $name = null): bool
     {
         $path = $this->disk ? Storage::disk()->path($path) : $path;
 
@@ -105,7 +140,7 @@ class Eparaksts
             return false;
         }
 
-        $name = $this->getFilename($path);
+        $name = $name ?? $this->getFilename($path);
         
         if ($this->indexOf($name) !== -1) {
             $this->log('warning', 'Omitting duplicate filename: ' . $name);
