@@ -387,7 +387,7 @@ class Eparaksts
                 continue;
             }
 
-            $result = $this->signAPI->storage()->upload($this->getSession(), $file['path']);
+            $result = $this->signAPI->storage()->upload($this->getSession(), $file['path'], $file['name']);
 
             if (empty($result['data'])) {
                 $this->log('error', 'Upload failed for: '. $file['name']);
