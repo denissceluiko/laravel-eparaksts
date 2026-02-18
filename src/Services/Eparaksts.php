@@ -348,6 +348,7 @@ class Eparaksts
         }
 
         if (empty($this->getSession())) {
+            $this->sessionStorage->flushSessionData();
             $response = $this->signAPI->session()->start();
 
             if (empty($response) || empty($response['data']['sessionIds'])) {
@@ -552,27 +553,5 @@ class Eparaksts
     public function getLogs(): array
     {
         return $this->logs;
-    }
-
-    public static function activeSigning(string $session): bool
-    {
-        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
-        return in_array($session, $activeSessions);
-    }
-
-    public static function startSigning(string $session): void
-    {
-        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
-        $activeSessions[] = $session;
-        session()->put( config('eparaksts.session_prefix') . 'active_sessions', $activeSessions);
-    }
-
-    public static function stopSigning(string $session): void
-    {
-        $activeSessions = session()->get( config('eparaksts.session_prefix') . 'active_sessions', []);
-        $activeSessions = array_filter($activeSessions, function ($value) use ($session) {
-            return $value != $session;
-        });
-        session()->put( config('eparaksts.session_prefix') . 'active_sessions', $activeSessions);
     }
 }
