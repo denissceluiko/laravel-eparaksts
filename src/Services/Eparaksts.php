@@ -365,6 +365,7 @@ class Eparaksts
 
         if ($newFiles === true) {
             $this->digestData = [];
+            $this->sessionStorage->flushDigest();
             $this->signature = null;
         }
     }
@@ -465,7 +466,8 @@ class Eparaksts
 
         if (empty($finalized['data']) || 
             empty($finalized['data']['results']) || 
-            $finalized['data']['results'][0]['sessionId'] != $this->getSession()
+            $finalized['data']['results'][0]['sessionId'] != $this->getSession() ||
+            array_key_exists('error', $finalized['data']['results'][0]) 
         ) {
             $this->log('error', 'Could not finalize signing for session: ' . $this->getSession());
             return false;
