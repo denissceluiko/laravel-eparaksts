@@ -124,7 +124,7 @@ class Eparaksts
             return false;
         }
 
-        if (!empty($data['path']) || !empty($data['name']))
+        if (empty($data['path']) || empty($data['name']))
             return false;
 
         // ['path' => '/path/to/file', 'name' => 'name.ext']
