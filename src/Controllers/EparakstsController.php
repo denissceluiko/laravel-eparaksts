@@ -203,6 +203,8 @@ class EparakstsController
             return redirect()->intended('/');
         } elseif (config('eparaksts.registration_enabled') === true) {
             return $this->register($identity);
+        } else {
+            session()->flash('ep_error', 'user_not_found');
         }
 
         return redirect()->intended('/');
