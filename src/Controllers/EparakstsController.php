@@ -237,7 +237,7 @@ class EparakstsController
 
     public function callbackError(Request $request)
     {
-        $eparaksts = resolve('eparaksts-connector');
+        $eparaksts = resolve('eparaksts');
         $eparaksts->callOnError();
 
         // TBI change redirect destination

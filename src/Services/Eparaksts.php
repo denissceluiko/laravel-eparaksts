@@ -512,6 +512,17 @@ class Eparaksts
         return true;
     }
 
+    public function getFileValidation(?string $fileId = null): ?array
+    {
+        $fileId = $fileId ?? ($this->files[0]['id'] ?? null);
+
+        if (empty($fileId) || empty($this->getSession())) {
+            return null;
+        }
+
+        return $this->signAPI->validation()->validate($this->getSession(), $fileId);
+    }
+
     public function signatureAuthorizationData(): array
     {
         if (!$this->sessionOk() || !$this->hasDigestCalculated()) {
