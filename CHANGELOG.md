@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2] — 2026-06-06
+
+### Bug fixes
+- **OAuth callback redirect loop** — `requestToken()` now includes `redirect_uri` in the token exchange request. RFC 6749 requires this parameter to match the one used in the authorization request; omitting it caused eParaksts to reject the token exchange, leaving the connector without a bearer token and sending `me()` into a loop back to identification.
+- **Silent loop on token request failure** — when `requestToken()` returns `false` (any non-200 from the token endpoint), the callback now flashes `ep_error: token_request_failed` and redirects to `redirects.error` instead of falling through to `callbackIdentification()` with no bearer.
+- **Identification / signing-identity loop in `signFlow()`** — replaced `isAuthenticated(SCOPE_IDENTIFICATION)` and `isAuthenticated(SCOPE_SIGNING_IDENTITY)` with session-data checks (`epsession()->me()` and `epsession()->signIdentities()`). The token-based check failed silently for age-gated identification (token stored under `SCOPE_IDENTIFICATION_WITH_AGE_*`, checked under `SCOPE_IDENTIFICATION`) and was susceptible to any token-loading race. The session `me` data is set unconditionally by the callback before any login logic runs and persists reliably across requests.
+- **`TypeError` on non-string callbacks** — `HasCallbacks::push()` now accepts `mixed` and silently ignores non-string values (e.g. `[ClassName::class, 'method']`) rather than crashing with a PHP `TypeError`. Callbacks must still be class name strings extending `Callback` or `IdentificationCallback`.
+
 ## [0.4.1] — 2026-06-06
 
 ### Breaking changes

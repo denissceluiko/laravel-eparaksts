@@ -42,8 +42,14 @@ class EparakstsController
         $eparaksts = resolve('eparaksts-connector');
         $token     = $eparaksts->requestToken(
             Eparaksts::GRANT_AUTHORIZATION_CODE,
-            ['code' => request('code')]
+            ['code' => request('code'), 'redirect_uri' => route('eparaksts.redirect')]
         );
+
+        if ($token === false) {
+            session()->flash('ep_error', 'token_request_failed');
+            return redirect(config('eparaksts.redirects.error', '/'));
+        }
+
         epsession()->saveTokens($eparaksts->getTokens());
 
         $activeSigning = session()->pull(config('eparaksts.session_prefix') . '_signing_' . $state, null);
@@ -143,7 +149,7 @@ class EparakstsController
 
         $eparaksts->callBeforeIdentificationObtained();
 
-        if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_IDENTIFICATION)) {
+        if (empty(epsession()->me())) {
             Redirect::setIntendedUrl($here);
             return redirect()->route('eparaksts.identification');
         }
@@ -157,7 +163,7 @@ class EparakstsController
 
         $eparaksts->callBeforeSigningIdentityObtained();
 
-        if (!$eparaksts->connector()->isAuthenticated(Eparaksts::SCOPE_SIGNING_IDENTITY)) {
+        if (empty(epsession()->signIdentities())) {
             Redirect::setIntendedUrl($here);
             return redirect()->route('eparaksts.identities');
         }

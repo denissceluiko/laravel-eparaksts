@@ -16,8 +16,12 @@ trait HasCallbacks
         return $this;
     }
 
-    protected function push(string $fullAction, string $callback): static
+    protected function push(string $fullAction, mixed $callback): static
     {
+        if (!is_string($callback)) {
+            return $this;
+        }
+
         if (!is_a($callback, Callback::class, true) && !is_a($callback, IdentificationCallback::class, true)) {
             return $this;
         }

@@ -203,13 +203,33 @@ class EparakstsControllerTest extends TestCase
             new Response(200, [], json_encode(['data' => [['id' => 'f1', 'name' => 'doc.pdf']]])),
         ]);
 
+        // Identification check uses me() data, not a token.
         $this->withSession($this->epSession([
-            'tokens'    => [Eparaksts::SCOPE_IDENTIFICATION => ['bearer' => 'tok', 'expires' => 9999999999]],
-            'me'        => ['sign_identities' => []],
+            'me'        => ['name' => 'JĀNIS BĒRZIŅŠ', 'serial_number' => 'PNOLV-123456-12345', 'sign_identities' => []],
             'callbacks' => [],
         ]))
             ->get('/ep/sign/test-sess')
             ->assertRedirect(route('eparaksts.identities'));
+    }
+
+    // --- redirect(): token request failure ---
+
+    public function testCallbackFlashesErrorWhenTokenRequestFails(): void
+    {
+        $state = 'fail-token-state';
+
+        $this->bindConnectorMock([
+            new Response(401, [], json_encode(['error' => 'invalid_client'])),
+        ]);
+
+        $this->withSession($this->epSession([
+            'state'  => $state,
+            'action' => Eparaksts::SCOPE_IDENTIFICATION,
+            'tokens' => [],
+        ]))
+            ->get('/eparaksts/callback?code=bad-code&state=' . $state)
+            ->assertRedirect('/')
+            ->assertSessionHas('ep_error', 'token_request_failed');
     }
 
     // --- finalizeSigning() controller (reached via SCOPE_SIGNATURE OAuth callback) ---

@@ -82,6 +82,14 @@ class HasCallbacksTest extends TestCase
         $this->assertEmpty($callbacks['beforeFinalRedirect'] ?? []);
     }
 
+    public function testNonStringCallbackIsIgnoredAndDoesNotThrow(): void
+    {
+        $service = $this->makeService();
+        // PHP callable array — must not throw TypeError and must not register the callback
+        $service->afterSigningFinalized([CallbackStub::class, 'handle']);
+        $this->assertEmpty($service->getCallbacks()['afterSigningFinalized'] ?? []);
+    }
+
     // --- on* registration ---
 
     public function testOnPrefixRegistersCallback(): void
