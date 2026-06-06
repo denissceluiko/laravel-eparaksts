@@ -1,6 +1,6 @@
 # laravel-eparaksts — Laravel package for eParaksts
 
-Laravel 11/12/13 service-provider that wraps **dencel/eparaksts** (^0.3) and orchestrates the full document-signing and identity-verification flow for the Latvian eParaksts platform.
+Laravel 12/13 service-provider that wraps **dencel/eparaksts** (^0.3) and orchestrates the full document-signing and identity-verification flow for the Latvian eParaksts platform.
 
 Namespace: `Dencel\LaravelEparaksts`. Requires PHP ≥ 8.4.
 

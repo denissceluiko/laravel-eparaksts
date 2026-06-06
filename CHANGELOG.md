@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] — 2026-06-06
+
+### Breaking changes
+- **Laravel 11 is no longer supported.** Minimum supported version is now Laravel 12. Dependency resolution failures with `orchestra/testbench` ^9.x under PHP 8.5 make this combination untestable; Laravel 11 security support ends late 2026 in any case.
+
 ## [0.4.0] — 2026-06-06
 
 ### Breaking changes
@@ -17,7 +22,7 @@
 - **Laravel logger integration** — internal errors and warnings are forwarded to `Log::error/warning/info('[eparaksts] ...')`. Set `EPARAKSTS_LOGGING=false` in `.env` to suppress (e.g. if raw API error responses in logs are a concern)
 - **`redirects.signing_complete` config key** — explicit fallback when `redirectAfter()` was never set and signing completes
 - **Rector** — `composer rector` (dry-run) / `composer rector:fix` for deprecation and upgrade checks; configured to target PHP 8.5 + Laravel 13 (`LARAVEL_130_WITHOUT_ATTRIBUTES`)
-- **Laravel 13 support** — illuminate constraint widened to `^11.0 || ^12.0 || ^13.0`; PHP `^8.4` already covers 8.5
+- **Laravel 12 + 13 support** — illuminate constraint is now `^12.0 || ^13.0`; PHP `^8.4` already covers 8.5
 - CI matrix expanded: PHP 8.5, Laravel 13 (testbench 11.x); `fail-fast: false`; install step now correctly pins testbench to exercise each Laravel version rather than running the lockfile
 
 ### Robustness

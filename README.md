@@ -1,6 +1,6 @@
 # laravel-eparaksts
 
-Laravel package for integrating the Latvian **eParaksts** e-signature and identity platform into your Laravel 11/12 application.
+Laravel package for integrating the Latvian **eParaksts** e-signature and identity platform into your Laravel 12/13 application.
 
 Wraps [dencel/eparaksts](https://github.com/denissceluiko/eparaksts) and provides:
 - Fluent document-signing service with per-request session state
@@ -11,7 +11,7 @@ Wraps [dencel/eparaksts](https://github.com/denissceluiko/eparaksts) and provide
 ## Requirements
 
 - PHP ≥ 8.4
-- Laravel 11, 12, or 13
+- Laravel 12 or 13
 - eParaksts API credentials ([test environment](https://www.eparaksts.lv/en/for_developers/Application_test_environment))
 
 ## Installation
