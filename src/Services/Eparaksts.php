@@ -222,6 +222,25 @@ class Eparaksts
         return $this->session;
     }
 
+    public function refreshFiles(): static
+    {
+        if (!$this->sessionEstablished) {
+            $this->log('warning', 'refreshFiles() called without an established session.');
+            return $this;
+        }
+
+        $list = $this->signAPI->storage()->list($this->getSession());
+
+        if (empty($list) || !array_key_exists('data', $list)) {
+            $this->log('error', 'Could not refresh file list.');
+            return $this;
+        }
+
+        $this->files = $list['data'] ?? [];
+
+        return $this;
+    }
+
     public function close(): void
     {
         if ($this->sessionEstablished) {

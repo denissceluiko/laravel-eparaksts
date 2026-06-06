@@ -1,6 +1,9 @@
 # Changelog
 
-## [0.4.2] — 2026-06-06
+## [0.4.4] — 2026-06-06
+
+### Added
+- **`refreshFiles()`** — lightweight re-list of files from SignAPI after `finalizeSigning()`, without re-running the full `session()` flow. Call it inside an `afterSigningFinalized` callback to get the signed file IDs without a reconnect penalty. Returns `$this` for chaining; logs a warning and no-ops if no session is established.
 
 ### Bug fixes
 - **OAuth callback redirect loop** — `requestToken()` now includes `redirect_uri` in the token exchange request. RFC 6749 requires this parameter to match the one used in the authorization request; omitting it caused eParaksts to reject the token exchange, leaving the connector without a bearer token and sending `me()` into a loop back to identification.

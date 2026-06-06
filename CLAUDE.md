@@ -107,6 +107,16 @@ $path = Eparaksts::session($sessionId)
 $path = Eparaksts::session($sessionId)->download('/storage/signed/', keep: true);
 ```
 
+**Refreshing the file list after signing:** `finalizeSigning()` creates the signed document under a new file ID. The in-memory file list populated during `session()` is stale at this point. Use `refreshFiles()` to re-list from the API without re-running the full `session()` reconnect flow:
+
+```php
+// In an afterSigningFinalized callback:
+$this->eparaksts->refreshFiles();
+$path = $this->eparaksts->download('/storage/signed/');
+```
+
+`refreshFiles()` only calls `storage()->list()` and updates `$this->files`. No token refresh, no digest/callback reload. Returns `$this` for chaining; logs a warning and does nothing if the session is not established.
+
 ---
 
 ## Routes
@@ -212,7 +222,7 @@ Callbacks are named by convention: `before*` / `after*` register them; `call*` d
 
 ### Serialization note
 
-Callback class names are stored as strings in the session and instantiated via `new $class()` on dispatch. Only class name strings are accepted — passing anything other than a string causes a `TypeError`. This eliminates PHP object deserialization risk entirely.
+Callback class names are stored as strings in the session and instantiated via `new $class()` on dispatch. Only class name strings extending `Callback` or `IdentificationCallback` are accepted — non-strings (e.g. PHP callable arrays) are silently ignored. This eliminates PHP object deserialization risk entirely.
 
 ---
 

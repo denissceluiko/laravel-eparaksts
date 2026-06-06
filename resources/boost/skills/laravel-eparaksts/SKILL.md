@@ -42,10 +42,10 @@ Gives Claude context for working on `dencel/laravel-eparaksts` — the Laravel s
 ## Signing flow (high-level)
 
 1. `Eparaksts::upload($paths)->redirectAfter($url)->sign()` — upload files, redirect to `/ep/sign/{id}`
-2. `signFlow()` — checks identification → signing identity → calculates digest → redirects to eParaksts for SCOPE_SIGNATURE
+2. `signFlow()` — checks `epsession()->me()` (not token state) for identification; checks `epsession()->signIdentities()` for signing identity; calculates digest → redirects to eParaksts for SCOPE_SIGNATURE
 3. eParaksts redirects back → `redirect()` callback dispatches to `finalizeSigning()`
 4. `finalizeSigning()` — signs digest server-side, calls `signing()->finalizeSigning()`, redirects to `redirectAfter` URL
-5. App downloads signed file with `Eparaksts::session($id)->download($path)`
+5. App downloads signed file with `Eparaksts::session($id)->download($path)`; call `->refreshFiles()` first if inside an `afterSigningFinalized` callback to get the post-signing file list without a full reconnect
 
 **Cancellation:** if the user cancels on the eParaksts side the callback receives `?error=access_denied`. `ep_error` is flashed and the user is redirected to `redirectAfter` — the same page as a successful signing. For identification/identity-flow OAuth errors the fallback is `redirect()->intended()` back toward the sign flow.
 

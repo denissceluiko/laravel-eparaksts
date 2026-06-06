@@ -420,6 +420,41 @@ class EparakstsServiceTest extends TestCase
         $this->assertNull($s->getSession());
     }
 
+    // --- refreshFiles ---
+
+    public function testRefreshFilesNoOpWhenSessionNotEstablished(): void
+    {
+        $s      = $this->makeService();
+        $result = $s->refreshFiles();
+        $this->assertSame($s, $result);
+        $this->assertEmpty($s->getFiles());
+    }
+
+    public function testRefreshFilesUpdatesFileList(): void
+    {
+        $updatedFiles = [
+            ['id' => 'signed-1', 'name' => 'doc.edoc', 'size' => 2048, 'type' => 'edoc'],
+        ];
+
+        $s = $this->makeService(
+            signApiResponses: [
+                $this->tokenResponse(),
+                new Response(200, [], json_encode(['status' => 'ok'])),
+                new Response(200, [], json_encode(['data' => null])),          // initial list (empty)
+                new Response(200, [], json_encode(['data' => $updatedFiles])), // refreshFiles list
+            ]
+        );
+
+        $s->session('test-sess');
+        $this->assertEmpty($s->getFiles());
+
+        $result = $s->refreshFiles();
+
+        $this->assertSame($s, $result);
+        $this->assertCount(1, $s->getFiles());
+        $this->assertSame('signed-1', $s->getFiles()[0]['id']);
+    }
+
     // --- getFileValidation ---
 
     public function testGetFileValidationNoFilesReturnsNull(): void
