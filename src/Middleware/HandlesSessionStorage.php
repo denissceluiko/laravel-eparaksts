@@ -11,7 +11,7 @@ class HandlesSessionStorage
     {
         $storage = resolve('ep-session');
         $storage->init($request->session());
-        
+
         if ($storage->hasTokens()) {
             resolve('eparaksts-connector')->setTokens($storage->getTokens());
             resolve('eparaksts-signapi')->setTokens($storage->getTokens());

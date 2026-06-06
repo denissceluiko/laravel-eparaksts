@@ -5,72 +5,75 @@ namespace Dencel\LaravelEparaksts\Services;
 use Dencel\Eparaksts\Eparaksts;
 use Illuminate\Session\Store;
 
-class SessionStorage {
-    protected string $prefix;
+class SessionStorage
+{
     protected array $storage = [];
 
-    public function __construct(string $prefix)
-    {
-        $this->prefix = $prefix;
-    }
+    public function __construct(protected string $prefix) {}
 
     public function save()
     {
         $b64Encoded = base64_encode(json_encode($this->storage));
-        session()->put($this->prefix.'_ep_storage', $b64Encoded);
+        session()->put($this->prefix . '_ep_storage', $b64Encoded);
     }
 
     public function init(Store $store)
     {
-        $b64Decoded = base64_decode($store->get($this->prefix.'_ep_storage', ''), true);
+        $b64Decoded    = base64_decode((string) $store->get($this->prefix . '_ep_storage', ''), true);
         $this->storage = json_decode($b64Decoded, true) ?? [];
     }
 
     public function action(?string $new = null): string
     {
-        if ($new === null)
+        if ($new === null) {
             return $this->storage['action'] ?? '';
+        }
 
         return $this->storage['action'] = $new;
     }
 
     public function state(bool $new = false): string
     {
-        if ($new === false)
+        if ($new === false) {
             return $this->storage['state'] ?? '';
+        }
 
-        $this->storage['state'] = sha1(uniqid('eparaksts_'));
+        $this->storage['state'] = bin2hex(random_bytes(16));
         return $this->storage['state'];
     }
-    
+
     public function me(?array $identity = null): array
     {
-        if ($identity === null)
+        if ($identity === null) {
             return $this->storage['me'] ?? [];
+        }
 
         $this->storage['me'] = array_merge($this->storage['me'] ?? [], $identity);
         return $this->storage['me'];
     }
 
-        
+
     public function signIdentities(): ?array
     {
-        if (empty( $this->me()['sign_identities'] ))
+        if (empty($this->me()['sign_identities'])) {
             return null;
+        }
 
         return $this->storage['me']['sign_identities'] ?? null;
     }
 
     public function signIdentity(string $id, ?array $newData = null): ?array
     {
-       if (empty( $this->me()['sign_identities'] ))
+        if (empty($this->me()['sign_identities'])) {
             return null;
+        }
 
         foreach ($this->storage['me']['sign_identities'] as $key => $signIdentity) {
             if ($id === $signIdentity['id']) {
-                if (empty($newData))
+                if (empty($newData)) {
                     return $signIdentity;
-                
+                }
+
                 return $this->storage['me']['sign_identities'][$key] = $newData;
             }
         }
@@ -85,7 +88,7 @@ class SessionStorage {
         }
 
         if ($callbacks === null) {
-            return $this->storage['callbacks'] ?? [];
+            return $this->storage['callbacks'];
         }
 
         $this->storage['callbacks'] = $callbacks;
@@ -108,7 +111,7 @@ class SessionStorage {
 
     public function flush(): void
     {
-        session()->put($this->prefix.'_ep_storage', '');
+        session()->put($this->prefix . '_ep_storage', '');
         $this->storage = [];
     }
 
@@ -120,20 +123,22 @@ class SessionStorage {
     public function saveTokens(array $tokens): void
     {
         foreach ($tokens as $scope => $token) {
-            if (empty($token['bearer']) || empty($token['expires']))
+            if (empty($token['bearer']) || empty($token['expires'])) {
                 continue;
-            
+            }
+
             $this->storage['tokens'][$scope] = $token;
         }
     }
-    
+
     public function flushToken(string $scope): void
     {
-        if (empty($this->storage['tokens']))
+        if (empty($this->storage['tokens'])) {
             return;
+        }
 
         $this->storage['tokens'][$scope] = [
-            'bearer' => null,
+            'bearer'  => null,
             'expires' => null,
         ];
     }
@@ -145,16 +150,16 @@ class SessionStorage {
 
     public function getDigest(): ?array
     {
-        if (empty($this->storage['digests'])){
+        if (empty($this->storage['digests'])) {
             return null;
         }
 
-        return $this->storage['digests'] ?? null;
+        return $this->storage['digests'];
     }
 
     public function saveDigest(?array $data): void
     {
-        if (empty($this->storage['digests'])){
+        if (empty($this->storage['digests'])) {
             $this->storage['digests'] = [];
         }
 
@@ -163,18 +168,60 @@ class SessionStorage {
 
     public function flushDigest(): void
     {
-        if (empty($this->storage['digests'])){
+        if (empty($this->storage['digests'])) {
             $this->storage['digests'] = [];
         }
 
         $this->storage['digests'] = [];
     }
 
-    public function flushSessionData() : void
+    public function signingCertType(?string $type = null): string
+    {
+        if ($type !== null) {
+            $this->storage['signing_cert_type'] = $type;
+        }
+
+        return $this->storage['signing_cert_type'] ?? Eparaksts::CERT_SIGNING;
+    }
+
+    public function authCertType(?string $type = null): string
+    {
+        if ($type !== null) {
+            $this->storage['auth_cert_type'] = $type;
+        }
+
+        return $this->storage['auth_cert_type'] ?? Eparaksts::CERT_MOBILEID_SIGN;
+    }
+
+    public function withArchive(?bool $value = null): bool
+    {
+        if ($value !== null) {
+            $this->storage['with_archive'] = $value;
+        }
+
+        return $this->storage['with_archive'] ?? false;
+    }
+
+    public function batchSessions(?array $sessions = null): array
+    {
+        if ($sessions !== null) {
+            $this->storage['batch_sessions'] = $sessions;
+        }
+
+        return $this->storage['batch_sessions'] ?? [];
+    }
+
+    public function flushSessionData(): void
     {
         $this->callbacks([]);
         $this->resetRedirectAfter();
         $this->flushToken(Eparaksts::SCOPE_SIGNATURE);
-        $this->flushDigest();    
+        $this->flushDigest();
+        unset(
+            $this->storage['signing_cert_type'],
+            $this->storage['auth_cert_type'],
+            $this->storage['with_archive'],
+            $this->storage['batch_sessions'],
+        );
     }
 }

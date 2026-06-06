@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace Dencel\LaravelEparaksts\Callbacks;
 
@@ -10,12 +10,12 @@ abstract class Callback
 
     abstract public function handle();
 
-    public function getEparaksts() : ?string
+    public function getEparaksts(): ?Eparaksts
     {
         return $this->eparaksts;
     }
 
-    public function setEparaksts(Eparaksts $eparaksts) : ?Eparaksts
+    public function setEparaksts(Eparaksts $eparaksts): ?Eparaksts
     {
         return $this->eparaksts = $eparaksts;
     }

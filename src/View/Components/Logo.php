@@ -11,7 +11,10 @@ class Logo extends Component
     public string $path = '';
 
     /**
-     * Create a new component instance.
+     * @param string|null $type Logo variant: eparaksts (default), mobile, mobile-full,
+     *                          mobile-small, eid, eid-scan, eid-scan-small, karte, ezimogs, api
+     * @param string|null $class CSS class(es) applied to the <img> element
+     * @param string|null $alt Alt text; defaults to empty string if omitted
      */
     public function __construct(
         public ?string $type = '',

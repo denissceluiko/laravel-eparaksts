@@ -3,8 +3,12 @@
 namespace Dencel\LaravelEparaksts\Services;
 
 use Dencel\Eparaksts\Eparaksts as DencelEparaksts;
+use Dencel\Eparaksts\Exception\ApiException;
 use Dencel\Eparaksts\SignAPI\v1\SignAPI;
 use Dencel\LaravelEparaksts\Concerns\HasCallbacks;
+use Dencel\LaravelEparaksts\Events\DocumentSigned;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class Eparaksts
@@ -13,24 +17,26 @@ class Eparaksts
 
     public const AVAILABLE_CONTAINER_TYPES = ['edoc', 'pdf', 'asice'];
 
-    protected ?string $session = null;
+    protected ?string $session         = null;
     protected bool $sessionEstablished = false;
-    protected string $containerType = 'edoc';
-    protected bool $allowPdf = true;
-    protected bool $newContainer = false;
-    protected array $files = [];
-    protected array $logs = [];
-    protected array $digestData = [];
-    protected ?string $signature = null;
-    protected ?string $disk = null;
+    protected string $containerType    = 'edoc';
+    protected bool $allowPdf           = true;
+    protected bool $newContainer       = false;
+    protected array $files             = [];
+    protected array $digestData        = [];
+    protected ?string $signature       = null;
+    protected ?string $disk            = null;
+    protected string $signingCertType  = DencelEparaksts::CERT_SIGNING;
+    protected string $authCertType     = DencelEparaksts::CERT_MOBILEID_SIGN;
+    protected bool $withArchive        = false;
+    protected array $batchSessions     = [];
+    protected array $batchSignatures   = [];
 
     public function __construct(
         protected DencelEparaksts $connector,
         protected SessionStorage $sessionStorage,
         protected SignAPI $signAPI,
-    ) {
-        
-    }
+    ) {}
 
     public function connector(): DencelEparaksts
     {
@@ -50,14 +56,14 @@ class Eparaksts
     /**
      * Upload one or multiple files.
      *
-     * @param array|string $paths should be either a single file path, or a list of file paths, or
-     *                     a list of associative arrays.
-     * @return static
+     * @param array|string $paths A single file path, a list of file paths, or a list of
+     *                            associative arrays with 'path' and 'name' keys.
      */
     public function upload(array|string $paths): static
     {
-        if (empty($paths)) 
+        if (empty($paths)) {
             return $this;
+        }
 
         // ['path' => '/path/to/file', 'name' => 'name.ext']
         if (is_array($paths) && !array_is_list($paths)) {
@@ -94,20 +100,20 @@ class Eparaksts
 
     public function sign(): mixed
     {
-        return redirect()->route('eparaksts.sign', [$this->getSession()]);
+        return \redirect()->route('eparaksts.sign', [$this->getSession()]);
     }
 
     public function redirectAfter(string $to): static
     {
         $this->sessionStorage->redirectAfter($to);
         return $this;
-    }    
+    }
 
     public function getRedirectAfter(): ?string
     {
         return $this->sessionStorage->redirectAfter();
     }
-        
+
     public function resetRedirectAfter(): void
     {
         $this->sessionStorage->resetRedirectAfter();
@@ -124,8 +130,9 @@ class Eparaksts
             return false;
         }
 
-        if (empty($data['path']) || empty($data['name']))
+        if (empty($data['path']) || empty($data['name'])) {
             return false;
+        }
 
         // ['path' => '/path/to/file', 'name' => 'name.ext']
         return $this->addFile($data['path'], $data['name']);
@@ -133,19 +140,19 @@ class Eparaksts
 
     protected function addFile(string $path, ?string $name = null): bool
     {
-        $path = $this->disk ? Storage::disk()->path($path) : $path;
+        $path = $this->disk ? Storage::disk($this->disk)->path($path) : $path;
 
         if (!file_exists($path)) {
             $this->log('error', 'File does not exist: ' . $path);
             return false;
         }
 
-        $name = $name ?? $this->getFilename($path);
-        
+        $name ??= $this->getFilename($path);
+
         if ($this->indexOf($name) !== -1) {
             $this->log('warning', 'Omitting duplicate filename: ' . $name);
             return false;
-        }        
+        }
 
         $this->files[] = [
             'name' => $name,
@@ -174,8 +181,9 @@ class Eparaksts
     public function getFile(string $id): ?array
     {
         foreach ($this->getFiles() as $file) {
-            if ($file['id'] === $id)
+            if ($file['id'] === $id) {
                 return $file;
+            }
         }
 
         return null;
@@ -193,10 +201,7 @@ class Eparaksts
 
     public function hasDigestCalculated(): bool
     {
-        if(empty($this->digestData))
-            return false;
-
-        return true;
+        return !empty($this->digestData);
     }
 
     public function sessionOk(): bool
@@ -206,7 +211,7 @@ class Eparaksts
 
     public function session(?string $id = null): static
     {
-        $this->session = $id;
+        $this->session            = $id;
         $this->sessionEstablished = false;
         $this->establishSession();
         return $this;
@@ -222,39 +227,41 @@ class Eparaksts
         if ($this->sessionEstablished) {
             $this->signAPI->session()->close($this->getSession());
         }
-        
-        // Clean up anything hanging
+
         $this->sessionStorage->flushSessionData();
         $this->sessionEstablished = false;
-        $this->session = null;        
+        $this->session            = null;
     }
-    
+
     public function signAs(string $type, ?bool $newContainer = null): bool
     {
         if ($this->canSignAs($type)) {
             $this->containerType = $type;
-            $this->newContainer = is_null($newContainer) 
-                ? $this->newContainer
-                : $newContainer;
+            $this->newContainer  = $newContainer ?? $this->newContainer;
+            return true;
         }
 
         return false;
     }
 
-    public function canSignAs(string $type): bool 
+    public function canSignAs(string $type): bool
     {
-        if (!in_array($type, static::AVAILABLE_CONTAINER_TYPES))
+        if (!in_array($type, static::AVAILABLE_CONTAINER_TYPES)) {
             return false;
+        }
 
         if ($type === 'pdf') {
-            if (count($this->files) === 0)
+            if (count($this->files) === 0) {
                 return true;
-            if (count($this->files) > 1)
+            }
+            if (count($this->files) > 1) {
                 return false;
-            
-            $file = array_first($this->files);
-            if (str_ends_with($file['name'], '.pdf') !== true)
+            }
+
+            $file = Arr::first($this->files);
+            if (str_ends_with((string) $file['name'], '.pdf') !== true) {
                 return false;
+            }
         }
 
         return true;
@@ -287,13 +294,41 @@ class Eparaksts
         return $this;
     }
 
+    public function qseal(): static
+    {
+        $this->signingCertType = DencelEparaksts::CERT_QSEAL;
+        $this->authCertType    = DencelEparaksts::CERT_QSEAL;
+        $this->sessionStorage->signingCertType($this->signingCertType);
+        $this->sessionStorage->authCertType($this->authCertType);
+        return $this;
+    }
+
+    public function withArchive(): static
+    {
+        $this->withArchive = true;
+        $this->sessionStorage->withArchive(true);
+        return $this;
+    }
+
+    public function batch(array $sessionIds): static
+    {
+        $this->batchSessions = array_values(array_filter($sessionIds));
+        $this->sessionStorage->batchSessions($this->batchSessions);
+        return $this;
+    }
+
+    public function getBatchSessions(): array
+    {
+        return $this->batchSessions;
+    }
+
     public function disk(string $disk): static
     {
         $this->disk = $disk;
         return $this;
     }
 
-    public function download(string $path = '', ?string $fileId = null, ?string $name = null): ?string
+    public function download(string $path = '', ?string $fileId = null, ?string $name = null, bool $keep = false): ?string
     {
         if (!$this->hasFiles()) {
             return null;
@@ -305,23 +340,27 @@ class Eparaksts
             $file = $this->getFile($fileId);
         }
 
-        $fileId = $fileId ?? $file['id'];
+        $fileId ??= $file['id'];
 
         $contents = $this->signAPI
             ->storage()
             ->download($this->getSession(), $fileId)
             ->getBody();
 
-        $name = $name ?? $file['name'];
+        $name ??= $file['name'];
         $fullpath = rtrim($path, '/') . '/' . $name;
 
         if ($this->disk !== null) {
-            $saved = Storage::disk($this->disk)->put($fullpath, $contents);
+            $saved    = Storage::disk($this->disk)->put($fullpath, $contents);
             $fullpath = Storage::disk($this->disk)->path($fullpath);
         } else {
             $saved = file_put_contents($fullpath, $contents);
         }
-        
+
+        if ($saved !== false && !$keep) {
+            $this->close();
+        }
+
         return $saved !== false ? $fullpath : null;
     }
 
@@ -334,14 +373,15 @@ class Eparaksts
 
         $heartbeat = $this->signAPI->configuration()->get();
 
-        if (empty($heartbeat))
+        if (empty($heartbeat)) {
             return false;
+        }
 
         return true;
     }
 
     protected function establishSession(): bool
-    {        
+    {
         if (!$this->establishConnection()) {
             $this->log('error', 'Could not establish connection to SignAPI.');
             return false;
@@ -361,7 +401,7 @@ class Eparaksts
 
         $list = $this->signAPI->storage()->list($this->getSession());
 
-        if (empty($list) || !array_key_exists('data',$list)) {
+        if (empty($list) || !array_key_exists('data', $list)) {
             $this->log('error', 'Could not connect to session');
             return false;
         }
@@ -372,8 +412,12 @@ class Eparaksts
         }
 
         $this->sessionEstablished = true;
-        $this->digestData = $this->sessionStorage->getDigest() ?? [];
-        $this->callbacks = $this->sessionStorage->callbacks();
+        $this->digestData         = $this->sessionStorage->getDigest() ?? [];
+        $this->callbacks          = $this->sessionStorage->callbacks();
+        $this->signingCertType    = $this->sessionStorage->signingCertType();
+        $this->authCertType       = $this->sessionStorage->authCertType();
+        $this->withArchive        = $this->sessionStorage->withArchive();
+        $this->batchSessions      = $this->sessionStorage->batchSessions();
 
         return true;
     }
@@ -391,12 +435,12 @@ class Eparaksts
             $result = $this->signAPI->storage()->upload($this->getSession(), $file['path'], $file['name']);
 
             if (empty($result['data'])) {
-                $this->log('error', 'Upload failed for: '. $file['name']);
+                $this->log('error', 'Upload failed for: ' . $file['name']);
                 continue;
             }
 
             $this->files[$key] = array_merge($this->files[$key], $result['data']);
-            $newFiles = true;
+            $newFiles          = true;
         }
 
         if ($newFiles === true) {
@@ -406,39 +450,59 @@ class Eparaksts
         }
     }
 
-    public function calculateDigest(): bool 
+    public function calculateDigest(): bool
     {
         if (!$this->sessionOk()) {
             $this->log('error', 'Can\'t calculate digest without a session.');
             return false;
         }
 
-        $signingCert = $this->connector()->findCert(DencelEparaksts::CERT_SIGNING, $this->sessionStorage()->signIdentities());
+        $signingCert = $this->connector()->findCert($this->signingCertType, $this->sessionStorage()->signIdentities());
         if (empty($signingCert)) {
             $this->log('error', 'Could not find signing certificate.');
             return false;
         }
 
         $pdf = $this->canSignAs('pdf') && $this->allowPdf === true;
-        
-        $response = $this->signAPI->signing()->calculateDigest(
-            $this->getSession(),
-            $signingCert,
-            $pdf,
-            $this->createNewEdoc ?? false
-        );
 
-        if (empty($response['data']) || empty($response['data']['sessionDigests'])){
+        $allSessions = empty($this->batchSessions)
+            ? $this->getSession()
+            : [$this->getSession(), ...$this->batchSessions];
+
+        try {
+            $response = $this->signAPI->signing()->calculateDigest(
+                $allSessions,
+                $signingCert,
+                $pdf,
+                // Pass null to omit the parameter when not set; true/false otherwise
+                $this->newContainer ? true : null
+            );
+        } catch (ApiException $e) {
+            $this->log('error', 'Could not calculate digest: ' . $e->getMessage());
+            return false;
+        }
+
+        if (empty($response['data']) || empty($response['data']['sessionDigests'])) {
             $this->log('error', 'Could not calculate digest.');
             return false;
         }
 
+        $sessionDigests = $response['data']['sessionDigests'];
+
         $this->digestData = [
-            'digest'                => $response['data']['sessionDigests'][0]['digest'],
-            'digests_summary'       => $response['data']['digests_summary'],
-            'algorithm'             => $response['data']['algorithm'],
-            'signature_algorithm'   => $response['data']['signature_algorithm'],
+            'digest'              => $sessionDigests[0]['digest'],
+            'digests_summary'     => $response['data']['digests_summary'],
+            'algorithm'           => $response['data']['algorithm'],
+            'signature_algorithm' => $response['data']['signature_algorithm'],
         ];
+
+        if (!empty($this->batchSessions)) {
+            $allSessionIds             = [$this->getSession(), ...$this->batchSessions];
+            $this->digestData['batch'] = array_map(
+                fn($i) => ['sessionId' => $allSessionIds[$i], 'digest' => $sessionDigests[$i]['digest']],
+                array_keys($sessionDigests)
+            );
+        }
 
         $this->sessionStorage->saveDigest($this->digestData);
 
@@ -447,30 +511,67 @@ class Eparaksts
 
     public function signDigest(): bool|string
     {
-        if (!$this->hasDigestCalculated()) {   
+        if (!$this->hasDigestCalculated()) {
             $this->log('error', 'Can\'t sign digest if it is not generated.');
             return false;
         }
-        
-        $signIdentity = $this->connector()->findIdentity(DencelEparaksts::CERT_SIGNING, $this->sessionStorage()->signIdentities());
+
+        $signIdentity = $this->connector()->findIdentity($this->signingCertType, $this->sessionStorage()->signIdentities());
         if (empty($signIdentity)) {
             $this->log('error', 'Could not find signing identity.');
             return false;
         }
 
+        if (!empty($this->digestData['batch'])) {
+            return $this->signBatchDigests($signIdentity);
+        }
+
         $signature = $this->connector()->sign(
-            $this->digestData['digest'], 
+            $this->digestData['digest'],
             $this->digestData['signature_algorithm'],
             $signIdentity['id']
         );
-        
-        if (empty($signature)) {
-            $error = json_decode($this->connector()->getResponse()->getBody()->getContents(), true);
-            $this->log('error', 'Signing error: ' . $error['error']);
-            return $error['error'];
+
+        if ($signature === null) {
+            $response = $this->connector()->getResponse();
+            $error    = $response ? json_decode($response->getBody()->getContents(), true) : [];
+            $message  = $error['error'] ?? 'Unknown signing error';
+            $this->log('error', 'Signing error: ' . $message);
+            return $message;
         }
 
         $this->signature = base64_encode($signature);
+
+        return true;
+    }
+
+    protected function signBatchDigests(array $signIdentity): bool|string
+    {
+        $requests = array_map(
+            fn($s) => ['digest_value' => $s['digest']],
+            $this->digestData['batch']
+        );
+
+        $results = $this->connector()->signBatch(
+            $requests,
+            $this->digestData['signature_algorithm'],
+            $signIdentity['id']
+        );
+
+        if ($results === null) {
+            $this->log('error', 'Batch signing failed.');
+            return false;
+        }
+
+        $this->batchSignatures = [];
+        foreach ($this->digestData['batch'] as $i => $session) {
+            $this->batchSignatures[] = [
+                'sessionId'      => $session['sessionId'],
+                'signatureValue' => base64_encode($results[$i]['signature'] ?? ''),
+            ];
+        }
+
+        $this->signature = $this->batchSignatures[0]['signatureValue'] ?? null;
 
         return true;
     }
@@ -487,34 +588,61 @@ class Eparaksts
             return false;
         }
 
-        $authCertificate = $this->connector()->findCert(DencelEparaksts::CERT_MOBILEID_SIGN, $this->sessionStorage()->signIdentities());
-        
+        $authCertificate = $this->connector()->findCert($this->authCertType, $this->sessionStorage()->signIdentities());
+
         if (empty($authCertificate)) {
             $this->log('error', 'Could not find auth certificate.');
             return false;
         }
 
-        $finalized = $this->signAPI->signing()->finalizeSigning(
-            $authCertificate, 
-            $this->getSession(), 
-            $this->signature
-        );
+        try {
+            $finalized = $this->signAPI->signing()->finalizeSigning(
+                $authCertificate,
+                empty($this->batchSignatures) ? $this->getSession() : $this->batchSignatures,
+                empty($this->batchSignatures) ? $this->signature : null
+            );
+        } catch (ApiException $e) {
+            $this->log('error', 'Could not finalize signing for session ' . $this->getSession() . ': ' . $e->getMessage());
+            return false;
+        }
 
-        if (empty($finalized['data']) || 
-            empty($finalized['data']['results']) || 
-            $finalized['data']['results'][0]['sessionId'] != $this->getSession() ||
-            array_key_exists('error', $finalized['data']['results'][0]) 
-        ) {
+        // The API may return per-session errors at 200 HTTP status; check for them.
+        if (empty($finalized['data']['results'])) {
             $this->log('error', 'Could not finalize signing for session: ' . $this->getSession());
             return false;
         }
+
+        foreach ($finalized['data']['results'] as $result) {
+            if (array_key_exists('error', $result)) {
+                $this->log('error', 'Could not finalize signing for session: ' . ($result['sessionId'] ?? $this->getSession()));
+                return false;
+            }
+        }
+
+        if (empty($this->batchSignatures) && $finalized['data']['results'][0]['sessionId'] !== $this->getSession()) {
+            $this->log('error', 'Could not finalize signing for session: ' . $this->getSession());
+            return false;
+        }
+
+        if ($this->withArchive) {
+            try {
+                $archiveSessions = empty($this->batchSignatures)
+                    ? $this->getSession()
+                    : array_column($this->batchSignatures, 'sessionId');
+                $this->signAPI->signing()->addArchive($authCertificate, $archiveSessions);
+            } catch (ApiException $e) {
+                $this->log('error', 'Could not add archive timestamp: ' . $e->getMessage());
+            }
+        }
+
+        event(new DocumentSigned($this->getSession(), $this->batchSessions));
 
         return true;
     }
 
     public function getFileValidation(?string $fileId = null): ?array
     {
-        $fileId = $fileId ?? ($this->files[0]['id'] ?? null);
+        $fileId ??= $this->files[0]['id'] ?? null;
 
         if (empty($fileId) || empty($this->getSession())) {
             return null;
@@ -530,12 +658,12 @@ class Eparaksts
             return [];
         }
 
-        $signIdentity = $this->connector()->findIdentity(DencelEparaksts::CERT_SIGNING, $this->sessionStorage()->signIdentities());
+        $signIdentity = $this->connector()->findIdentity($this->signingCertType, $this->sessionStorage()->signIdentities());
         if (empty($signIdentity)) {
             $this->log('error', 'Could not find signing identity.');
             return [];
         }
-        
+
         return [
             'sign_identity_id'          => $signIdentity['id'] ?? null,
             'digests_summary'           => $this->digestData['digests_summary'],
@@ -555,14 +683,14 @@ class Eparaksts
 
     protected function log(string $type, string $text): void
     {
-        if (empty($this->logs[$type]))
-            $this->logs[$type] = [];
+        if (!config('eparaksts.logging', true)) {
+            return;
+        }
 
-        $this->logs[$type][] = $text;
-    }
-
-    public function getLogs(): array
-    {
-        return $this->logs;
+        match ($type) {
+            'warning' => Log::warning('[eparaksts] ' . $text),
+            'info'    => Log::info('[eparaksts] ' . $text),
+            default   => Log::error('[eparaksts] ' . $text),
+        };
     }
 }

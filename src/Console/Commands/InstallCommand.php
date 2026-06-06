@@ -26,10 +26,10 @@ class InstallCommand extends Command
     public function handle()
     {
         $this->call('vendor:publish', [
-            '--tag' => 'eparaksts-config'
+            '--tag' => 'eparaksts-config',
         ]);
-                $this->call('vendor:publish', [
-            '--tag' => 'eparaksts-migrations'
+        $this->call('vendor:publish', [
+            '--tag' => 'eparaksts-migrations',
         ]);
 
         $this->info('Review eparaksts.php config file and run migrations after that.');

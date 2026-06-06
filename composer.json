@@ -20,13 +20,21 @@
     ],
     "homepage": "https://github.com/denissceluiko/laravel-eparaksts",
     "require": {
-        "php": "^8.2",
-        "dencel/eparaksts": "^0.2",
-        "illuminate/http": "^11.0 || ^12.0",
-        "illuminate/console": "^11.0 || ^12.0",
-        "illuminate/session": "^11.0 || ^12.0",
-        "illuminate/support": "^11.0 || ^12.0",
-        "illuminate/view": "^11.0 || ^12.0"
+        "php": "^8.4",
+        "dencel/eparaksts": "^0.3",
+        "illuminate/http": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/console": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/session": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/view": "^11.0 || ^12.0 || ^13.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
+        "rector/rector": "^2.4",
+        "driftingly/rector-laravel": "^2.5"
     },
     "autoload": {
         "files": [
@@ -35,6 +43,19 @@
         "psr-4": {
             "Dencel\\LaravelEparaksts\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Dencel\\LaravelEparaksts\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "fix": "php-cs-fixer fix",
+        "lint": "php-cs-fixer fix --dry-run --diff",
+        "analyse": "php -d memory_limit=-1 vendor/bin/phpstan analyse",
+        "rector": "rector process --dry-run",
+        "rector:fix": "rector process"
     },
     "extra": {
         "laravel": {

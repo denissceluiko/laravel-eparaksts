@@ -69,9 +69,33 @@ return [
     'signapi_host'  => env('SIGNAPI_HOST', 'https://signapi-prep.eparaksts.lv'),
 
     'session_prefix' => 'eparaksts_',
-    
+
     /**
      * No trailing slash.
      */
     'route_prefix' => 'ep',
+
+    /**
+     * Redirect destinations used by the package controller.
+     *
+     * login  — fallback for redirect()->intended() after successful identification,
+     *          failed identification (user_not_found), registration, and default OAuth callback.
+     * logout — destination after the logout flow completes (session already flushed,
+     *          so no intended URL applies).
+     * error  — destination on hard errors: OAuth state mismatch and OAuth error callbacks.
+     *          Also used as the fallback for redirect()->intended() on OAuth errors.
+     */
+    'redirects' => [
+        'login'            => '/',
+        'logout'           => '/',
+        'error'            => '/',
+        'signing_complete' => '/',
+    ],
+
+    /**
+     * Whether to pipe internal errors and warnings to Laravel's logger.
+     * Disable if you are concerned about API error responses (which may include
+     * session metadata) appearing in your log output.
+     */
+    'logging' => env('EPARAKSTS_LOGGING', true),
 ];

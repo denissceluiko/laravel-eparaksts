@@ -13,6 +13,5 @@ Route::name('eparaksts.')
                 Route::get( '/logout', [EparakstsController::class, 'logoutFlow'])->name('logout');
                 Route::get( '/identities', [EparakstsController::class, 'identitiesFlow'])->name('identities');
                 Route::get( '/sign/{session}', [EparakstsController::class, 'signFlow'])->name('sign');
-                Route::get( '/finalize', [EparakstsController::class, 'finalizeSigning'])->name('finalize');
             });
     });
